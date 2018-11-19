@@ -91,7 +91,7 @@ def timer_action():
 
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     edges = cv.Canny(gray, 50, 150, apertureSize=3)
-    pp_lines(edges, img)
+    img = pp_lines(edges, img)
 
     im = mw.toQImage(img)
     mw.image_label.setPixmap(QPixmap.fromImage(im))
@@ -196,8 +196,40 @@ def pp_lines(edges, img):
             right_bottom = get_intersection_point(h_lines[i][:4], v_lines[j][:4])
             if left_top is not None and left_bottom is not None and right_top is not None and right_bottom is not None:
                 regions.append([left_top, right_top, right_bottom, left_bottom])
-    regions = regions
 
+    src_img = cv.imread("C:\\pig.png")
+    sh, sw = src_img.shape[:2]
+
+    input_quad = np.float32([[0, 0], [sw - 1, 0], [sw - 1, sh - 1], [0, sh - 1]])
+    output_quad = np.float32([[100, 100], [sw - 1, 0], [sw - 101, sh - 101], [0, sh - 1]])
+
+    input_center_point = get_intersection_point(
+        [input_quad[0][0], input_quad[0][1], input_quad[2][0], input_quad[2][1]],
+        [input_quad[1][0], input_quad[1][1], input_quad[3][0], input_quad[3][1]])
+
+    for region in regions:
+        region_center_point = get_intersection_point(
+            region[0] + region[2],
+            region[1] + region[3])
+        x_offset = input_center_point[0] - region_center_point[0]
+        y_offset = input_center_point[1] - region_center_point[1]
+        region_center_point = [region_center_point[0] + x_offset, region_center_point[1] + y_offset]
+        offset_region = []
+        for p in region:
+            new_p = [p[0] + x_offset, p[1] + y_offset]
+            offset_region += [new_p]
+
+    m = cv.getPerspectiveTransform(input_quad, output_quad)
+
+    output = cv.warpPerspective(src_img, m, (sh, sw))
+
+    return output
+
+
+def points_distance(p1, p2):
+    x1, y1 = p1
+    x2, y2 = p2
+    return np.math.sqrt(np.math.pow(x2 - x1, 2) + np.math.pow(y2 - y1, 2))
 
 def get_intersection_point(line1, line2):
     x1, y1, x2, y2 = line1
