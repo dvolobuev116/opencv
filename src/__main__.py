@@ -114,7 +114,7 @@ def render_action():
     regions = pp_lines(edges, src)
 
     templ_src = cv.imread("D:\\opencv\\IMG_20181121_182353.png")
-    #generate_templates(templ_src, regions, "D:\\opencv\\temp\\")
+    generate_templates(templ_src, regions, "D:\\opencv\\temp\\")
 
     im = mw.toQImage(src)
     mw.image_label.setPixmap(QPixmap.fromImage(im))
@@ -250,11 +250,14 @@ def generate_templates(src_img, regions, output_path=None):
             new_p = [p[0] + x_offset, p[1] + y_offset]
             offset_region += [new_p]
 
-        min_d = None
+        sides = {0: [[3, 0], [0, 1]], 1: [[0, 1], [1, 2]], 2: [[1, 2], [2, 3]], 3: [[2, 3], [3, 0]], }
+        # min_d = None
         # коэфициент изменения длины
-        m = 1
+        mm = None
         for p in offset_region:
-            for i in [[0, 1], [1, 2], [2, 3], [3, 0]]:
+            min_d = None
+            min_d_p = None
+            for i in sides[offset_region.index(p)]:
                 # сторона исходного изображения
                 il = [input_quad[i[0]][0], input_quad[i[0]][1], input_quad[i[1]][0], input_quad[i[1]][1]]
                 # точка пересечения диагонали внутреннего сегмента
@@ -262,14 +265,19 @@ def generate_templates(src_img, regions, output_path=None):
                 # растояние до точки пересечения
                 if il_ip is not None:
                     d = points_distance(p, il_ip)
+                    # m = points_distance(region_center_point, il_ip) / points_distance(region_center_point, p)
                     if min_d is None or min_d > d:
                         min_d = d
-                        m = points_distance(region_center_point, il_ip) / points_distance(region_center_point, p)
-                        m = m
+                        min_d_p = il_ip
+                        # m = points_distance(region_center_point, il_ip) / points_distance(region_center_point, p)
+                        # m = m
+            m = points_distance(region_center_point, min_d_p) / points_distance(region_center_point, p)
+            if mm is None or m < mm:
+                mm = m
 
         for p in offset_region:
-            p[0] = np.math.floor(region_center_point[0] + (p[0] - region_center_point[0]) * m)
-            p[1] = np.math.floor(region_center_point[1] + (p[1] - region_center_point[1]) * m)
+            p[0] = np.math.floor(region_center_point[0] + (p[0] - region_center_point[0]) * mm)
+            p[1] = np.math.floor(region_center_point[1] + (p[1] - region_center_point[1]) * mm)
 
         output_quad = np.float32(offset_region)
         m = cv.getPerspectiveTransform(input_quad, output_quad)
